@@ -2,10 +2,9 @@
 #    Pré-processamento dos dados     #
 #######################################
 
-run_preprocessing <- function(data, num_cols=c("temp", "vento", "umid", "sensa"),
-                              range_list=list(c(-10, 1000), c(0, 200), c(0, 100), c(-10, 99))){
-  print("Preprocessing the data!")
-  
+run_preprocessing <- function(data, num_cols=c("temp", "vento", "umid", "sensa")){
+
+  # Eliminando valores NA (devido à falha na leitura):
   data <- dropna(data)
   
   # Checando se todas as colunas são numéricas:
@@ -17,14 +16,24 @@ run_preprocessing <- function(data, num_cols=c("temp", "vento", "umid", "sensa")
   }
 
   # Eliminando outliers:
-  # for (i in 1:length(num_cols)){
-  #   range_vals <- range_list[[i]]
-  #   col <- num_cols[i]
-  #   data[data$col < range_vals[0], col] <- NA
-  #   data[data$col > range_vals[1], col] <- NA
-  # }
   data[data$sensa == 99.9, 5] <- NA
+  # Eliminando valores NA (devido à remoção de outliers):
   data <- dropna(data)
+  
+  # Adicionando colunas auxiliares:
+  data$horario <- as.POSIXct(as.character(data$horario), format='%d/%m/%Y-%H:%M')
+  data$horario <- as.POSIXlt(data$horario)
+  data$ano <- unclass(data$horario)$year + 1900
+  data$mes <- unclass(data$horario)$mon + 1
+  month_num <- as.character(unclass(data$horario)$mon + 1)
+  for (num in c("1", "2", "3", "4", "5", "6", "7", "8", "9")){
+    month_num[month_num == num] = paste("0", num, sep="")
+  }
+  data$ano_mes <- paste(as.character(unclass(data$horario)$year + 1900), month_num, sep="-")
+  
+  # Filtrando os anos de interesse:
+  data <- data[data$ano >= 2015,]
+  data <- data[data$ano <= 2019,]
   
   return(data)
 }
@@ -38,4 +47,16 @@ dropna <- function(data){
   n2 <- nrow(data)
   # cat(sprintf("\"%s\" \"%i\"\n", "Linhas incompletas encontradas:", n1 - n2))
   return(data)
+}
+
+consecutive <- function(vector, k = 1) {
+  n <- length (vector)
+  result <- logical (n)
+  for (i in (1+k):n)
+    if (all( vector [(i-k):(i-1)] == vector[i]))
+      result [i] <- TRUE
+  for (i in 1:(n-k))
+    if (all( vector [(i+1):(i+k)] == vector[i]))
+      result [i] <- TRUE
+  return (result)
 }
