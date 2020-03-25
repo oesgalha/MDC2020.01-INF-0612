@@ -95,17 +95,6 @@ cepagri[cepagri$umid >= 21.0 & cepagri$umid <= 30.0, ]$state <- "Atencao"
 
 cepagri$data<-as.Date(cepagri$horario)
 
-# Separa o período de risco que será analisado: Agosto e Setembro,
-# entre às 10 e 17 horas
-periodorisco <- cepagri[
-  cepagri$horario$mon >= 7 &
-  cepagri$horario$mon <= 8,
-]
-periodorisco <- periodorisco[
-  periodorisco$horario$hour >= 10 &
-  periodorisco$horario$hour <= 17,
-]
-
 # Classifica um dia de forma bem rígida:
 # usa o pior estado alcançado em um dia,
 # mesmo que ele tenha se manifestado por pouco tempo
@@ -121,17 +110,23 @@ classification_method_2 <- function(states) {
 }
 
 # Gera a tabela com as ocorrências e porcentagens
-# de cada estado da Cepagri para os meses de Agosto e Setembro
-# usa como parâmetro uma função que classifica um dia:
-# para uma lista de estados, ela deve definir qual estado
-# define aquele dia
-generate_table <- function(classification_method) {
+# de cada estado agrupado por mês.
+#
+# Parâmetros:
+#   classification_method
+#     -> função que classifica um dia. Recebe uma
+#        lista de estados, deve definir qual estado
+#        representa o dia
+#   df
+#     -> dataframe com os dados de umidade relativa
+#        e os dias em que a umidade foi medida
+generate_table <- function(classification_method, df) {
   # Cria um agrupamento com todos os estados medidos
   # em um determinado dia
   daystate <- as.data.frame(
     tapply(
-      periodorisco$state,
-      periodorisco$data,
+      df$state,
+      df$data,
       function(state){
         factor(
           state,
@@ -152,28 +147,48 @@ generate_table <- function(classification_method) {
   daystate$day <- rownames(daystate)
   daystate$day <- as.POSIXct(as.character(daystate$day), format='%Y-%m-%d')
   daystate$day <- as.POSIXlt(daystate$day)
-  daystate$mes <- as.factor(sprintf("%02d", daystate$day$mon + 1))
+  daystate$mes <- as.factor(month.name[daystate$day$mon + 1])
 
   # Agrupa as ocorrências por mês
   bymonth <- as.data.frame(aggregate(daystate$mes, list(daystate$state), summary))
   colnames(bymonth) <- c("Estado", "Mes")
   bymonth <- cbind(bymonth, bymonth$Mes)
   bymonth$Mes <- NULL
-  colnames(bymonth) <- c("Estado", "Agosto", "Setembro")
-  # Calcula as porcentagens de ocorrências por mês
-  bymonth$PercAgosto <- bymonth$Agosto / sum(bymonth$Agosto) * 100
-  bymonth$PercSetembro <- bymonth$Setembro / sum(bymonth$Setembro) * 100
-  bymonth$PercAgosto <- round(bymonth$PercAgosto, digits = 1)
-  bymonth$PercSetembro <- round(bymonth$PercSetembro, digits = 1)
-  # Melhora nome das colunas
-  colnames(bymonth) <- c("Estado", "# Agosto", "# Setembro", "% Agosto", "% Setembro")
+  # Calcula as porcentagens de ocorrências para cada mês
+  months <- colnames(bymonth)[2:length(colnames(bymonth))]
+  for (month in months) {
+    bymonth[paste("%", month)] <- round(
+      bymonth[month] /  sum(bymonth[month]) * 100,
+      digits = 1
+    )
+  }
   # Tabela com quantidade e porcentagem de ocorrências de cada
-  # estado perigoso nos meses de Agosto e Setembro
+  # estado perigoso nos meses do dataframe recebido
   bymonth
 }
 
+# Separa o período de risco que será analisado: Agosto e Setembro,
+# entre às 10 e 17 horas
+periodorisco <- cepagri[
+  cepagri$horario$mon >= 7 &
+  cepagri$horario$mon <= 8 &
+  cepagri$horario$hour >= 10 &
+  cepagri$horario$hour <= 17,
+]
+
 # Classificação pelo pior estado
-table1 <- generate_table(classification_method_1); table1
+table1 <- generate_table(classification_method_1, periodorisco); table1
+# Estado August September % August % September
+# 1         OK     99        87     63.9        58.8
+# 2    Atencao     38        28     24.5        18.9
+# 3     Alerta     17        28     11.0        18.9
+# 4 Emergencia      1         5      0.6         3.4
+
 # Classificação pelo terceiro quartil
-table2 <- generate_table(classification_method_2); table2
+table2 <- generate_table(classification_method_2, periodorisco); table2
+# Estado August September % August % September
+# 1     Alerta      8        24      5.2        16.2
+# 2    Atencao     34        31     21.9        20.9
+# 3 Emergencia      0         1      0.0         0.7
+# 4         OK    113        92     72.9        62.2
 
