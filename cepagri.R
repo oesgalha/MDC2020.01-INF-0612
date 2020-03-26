@@ -108,8 +108,7 @@ ggplot(monthmean, aes(x=nomemes, y=umidade)) +
   labs(title = "Mediana da Umidade Relativa por Mês") +
   theme(plot.title = element_text(hjust = 0.5)) +
   scale_y_continuous(name = "Umidade") +
-  scale_x_discrete(name = "Mês") +
-  guides(gradient=guide_legend("Mediana da Umidade Relativa"))
+  scale_x_discrete(name = "Mês")
 
 # Agora temos valores mais coerentes e podemos
 # começar a classificação por estado
@@ -155,7 +154,7 @@ generate_table <- function(classification_method, df) {
       function(state){
         factor(
           state,
-          levels = c("OK", "Atencao","Alerta","Emergencia"),
+          levels = c("OK", "Atencao", "Alerta", "Emergencia"),
           ordered=TRUE
         )
       }
@@ -217,3 +216,54 @@ table2 <- generate_table(classification_method_2, periodorisco); table2
 # 3 Emergencia      0         1      0.0         0.7
 # 4         OK    113        92     72.9        62.2
 
+# Tabela com os dados de 1997-2008
+original_table <- data.frame(
+  Estado = c("Atencao","Alerta","Emergencia"),
+  August = c(10.1, 1.7, 0),
+  September = c(4.9, 2.3, 0.3)
+)
+# Tabela com os dados de 2015-2019
+current_table <- table2
+# Iguala a tabela com os dados atuais:
+# - Remove os OKs
+# - Deixa apenas as colunas com porcentagem
+current_table[4,] <- NA
+current_table <- current_table[!is.na(current_table$Estado),]
+current_table$August <- NULL
+current_table$September <- NULL
+colnames(current_table) <- c("Estado", "August", "September")
+
+# Recebe um dataframe com valores de estados
+# com Agosto e Setembro como colunas e converte
+# eles para valores da linha, preenchendo uma
+# coluna "mes" com o nome do mes de origem dos
+# valores
+colunize_month_value <- function(df) {
+  colunized <- df
+  colunized1 <- df[c("Estado", "August")]
+  colunized2 <- df[c("Estado", "September")]
+  colunized1$mes <- "August"
+  colunized2$mes <- "September"
+  colnames(colunized1) <- c("estado", "porcentagem", "mes")
+  colnames(colunized2) <- c("estado", "porcentagem", "mes")
+  rbind(colunized1, colunized2)
+}
+
+# Move os meses para um valor em uma coluna "mes"
+current_table <- colunize_month_value(current_table)
+original_table <- colunize_month_value(original_table)
+
+# Junta os dados separados por ano
+current_table$anos <- "2015-2019"
+original_table$anos <- "1997-2008"
+comparativo <- rbind(original_table, current_table)
+
+# Grouped
+ggplot(comparativo, aes(fill=estado, y=porcentagem, x=mes)) +
+  geom_bar(aes(fill = estado), position="dodge", stat="identity") +
+  facet_wrap(~ anos) +
+  scale_fill_manual(values = c("yellow", "orange", "red")) +
+  labs(title = "Porcentagem de Ocorrência dos Estados") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_y_continuous(name = "% no estado") +
+  scale_x_discrete(name = "Mês")
