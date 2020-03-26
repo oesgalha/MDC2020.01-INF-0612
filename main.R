@@ -25,11 +25,11 @@ cepagri <- read.csv(file, header = FALSE, sep = ";", col.names = names,  fill=TR
 cepagri <- run_preprocessing(cepagri, num_cols=names[2:length(names)])
 summary(cepagri)
 
-# Análise da Influência de Temperatura, umidade do ar e velocidade do vento na sensação térmica:
-run_thermal_sensation(cepagri, year = 2015, print_cor=TRUE)
-# run_thermal_sensation(cepagri, year = 2016)
-# run_thermal_sensation(cepagri, year = 2017)
-# run_thermal_sensation(cepagri, year = 2018)
+# # Análise da Influência de Temperatura, umidade do ar e velocidade do vento na sensação térmica:
+# run_thermal_sensation(cepagri, year = 2015, print_cor=TRUE)
+# # run_thermal_sensation(cepagri, year = 2016)
+# # run_thermal_sensation(cepagri, year = 2017)
+# # run_thermal_sensation(cepagri, year = 2018)
 # run_thermal_sensation(cepagri, year = 2019)
 run_thermal_sensation(cepagri, split_year=FALSE)
 

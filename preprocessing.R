@@ -35,6 +35,14 @@ run_preprocessing <- function(data, num_cols=c("temp", "vento", "umid", "sensa")
   data <- data[data$ano >= 2015,]
   data <- data[data$ano <= 2019,]
   
+  # Remove as medições incorretas de umidade que ocorreram
+  # em 2019 entre as 7 e 9 da manha com umidade relativa == 0
+  data[data$umi == 0.0 &
+       data$ano == 2019 & 
+       data$horario$hour >= 7 &
+       data$horario$hour <= 9, 4] <- NA
+  data <- dropna(data)
+  
   return(data)
 }
 

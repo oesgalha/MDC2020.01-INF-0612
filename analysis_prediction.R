@@ -32,8 +32,10 @@ run_thermal_prediction <- function(data, num_cols = c("temp", "vento", "umid", "
     print(paste("Epoch:", as.character(epoch), "Error:", as.character(error_min)))
   }
   print("Optimal parameters:")
-  print(opt_params)
-  
+  print(paste("alpha:", as.character(opt_params[1])))
+  print(paste("beta:", as.character(opt_params[2])))
+  print(paste("gamma:", as.character(opt_params[3])))
+
   # Executando o teste:
   sensa_test <- predict_sensa(data_test, opt_params)
   error_test <- calculate_error(data_test$sensa, sensa_test)
@@ -68,7 +70,7 @@ predict_sensa <- function(data, params){
   alpha <- params[1]
   beta <- params[2]
   gamma <- params[3]
-  predictions <- (data$temp * alpha * 0.9) + (data$vento * beta * 0.2) + (data$umid * gamma * 0.45)
+  predictions <- (data$temp * alpha * 0.9) + (data$vento * beta * 0.2) + (data$umid * gamma * 0.5)
 
   return(predictions)
 }
@@ -96,12 +98,14 @@ adjust_lr <- function(error){
 
 plot_boxplot <- function(data, sensa_pred_all){
   data_copy <- data
-  data$status <- "true"
+  data$status <- "1 - medido"
   data_copy$sensa <- sensa_pred_all
-  data_copy$status <- "pred"
+  data_copy$status <- "2 - estimado"
   data_all <- rbind(data, data_copy)
   # grouped boxplot
   ggplot(data_all, aes(x=ano_mes, y=sensa, fill=status)) + 
     geom_boxplot() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    xlab(NULL) + ylab("sensação térmica [ºC]") + 
+    ggtitle("Medições x valores estimados")
 }
