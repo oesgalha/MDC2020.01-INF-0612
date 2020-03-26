@@ -1,3 +1,5 @@
+library(ggplot2)
+
 setwd("~/learning/mdc2020/INF0612/trabalho/")
 
 # Carrega os dados
@@ -85,6 +87,29 @@ cepagri <- cepagri[!is.na(cepagri$umid), ]
 summary(cepagri[,c("umid")])
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 # 5.70   57.20   73.40   70.31   85.10  100.00
+
+# Segundo o artigo da Cepagri os meses de Agosto
+# e Setembro são os que apresentam mais risco à
+# saúde (considerando a umidade relativa)
+# A seguir vamos plotar a mediana das umidades
+# relativas por mês para validar essa afirmação
+monthmean <- aggregate(cepagri$umid, list(cepagri$horario$mon), mean)
+colnames(monthmean) <- c("mes", "umidade")
+monthmean$nomemes <- factor(month.name[monthmean$mes + 1], levels = month.name)
+# Ordena os meses
+levels(monthmean$nomemes) <- month.name
+
+# Compara a mediana da umidade relativa de cada mês
+# fica bem visível que Agosto e Setembro são os meses
+# mais secos
+ggplot(monthmean, aes(x=nomemes, y=umidade)) +
+  geom_bar(aes(fill = umidade), stat = "identity") +
+  scale_fill_gradient(low = "red", high = "blue", na.value = NA) +
+  labs(title = "Mediana da Umidade Relativa por Mês") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_y_continuous(name = "Umidade") +
+  scale_x_discrete(name = "Mês") +
+  guides(gradient=guide_legend("Mediana da Umidade Relativa"))
 
 # Agora temos valores mais coerentes e podemos
 # começar a classificação por estado
