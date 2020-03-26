@@ -4,12 +4,13 @@
 # Trabalho FINAL                                 #
 #------------------------------------------------#
 # Nome COMPLETO Aluno (a) 1:                     #
-#                                                #
+#  Karla Fátima Calvoso Simões                   #
 # Nome COMPLETO Aluno (a) 2:                     #
-#                                                #
+#  Oscar Esgalha                                 #
 # Nome COMPLETO Aluno (a) 3:                     #
-#                                                #
+#  Renan Afonso Rossi                            #
 # Nome COMPLETO Aluno (a) 4:                     #
+#  Weld Lucas Cunha                              #
 #------------------------------------------------#
 
 #------------------------------------------------#
@@ -18,6 +19,7 @@
 # setwd("") # configure o caminho antes de descomentar essa linha
 library(plyr);
 library(ggplot2);
+library(GGally);
 
 #------------------------------------------------#
 #     Pré-processamento                          #
@@ -25,6 +27,243 @@ library(ggplot2);
 # Carrega os dados
 names <- c("horario", "temp", "vento", "umid", "sensa")
 cepagri <- read.csv("cepagri.csv", header = FALSE, sep = ";", col.names = names)
+
+##################################################
+#------------------------------------------------#
+#     Análise Sensação Térmica                   #
+#------------------------------------------------#
+
+# Função de pré processamento
+run_preprocessing <- function(data, num_cols=c("temp", "vento", "umid", "sensa")){
+  
+  # Eliminando valores NA (devido à falha na leitura):
+  data <- dropna(data)
+  
+  # Checando se todas as colunas são numéricas:
+  for (col in num_cols){
+    if (class(data[, col]) != "numeric"){
+      data[, col] <- as.character(data[, col])
+      data[, col] <- as.numeric(data[, col])
+    }
+  }
+  
+  # Eliminando outliers:
+  data[data$sensa == 99.9, 5] <- NA
+  # Eliminando valores NA (devido à remoção de outliers):
+  data <- dropna(data)
+  
+  # Adicionando colunas auxiliares:
+  data$horario <- as.POSIXct(as.character(data$horario), format='%d/%m/%Y-%H:%M')
+  data$horario <- as.POSIXlt(data$horario)
+  data$ano <- unclass(data$horario)$year + 1900
+  data$mes <- unclass(data$horario)$mon + 1
+  month_num <- as.character(unclass(data$horario)$mon + 1)
+  for (num in c("1", "2", "3", "4", "5", "6", "7", "8", "9")){
+    month_num[month_num == num] = paste("0", num, sep="")
+  }
+  data$ano_mes <- paste(as.character(unclass(data$horario)$year + 1900), month_num, sep="-")
+  
+  # Filtrando os anos de interesse:
+  data <- data[data$ano >= 2015,]
+  data <- data[data$ano <= 2019,]
+  
+  # Remove as medições incorretas de umidade que ocorreram
+  # em 2019 entre as 7 e 9 da manha com umidade relativa == 0
+  data[data$umi == 0.0 &
+         data$ano == 2019 & 
+         data$horario$hour >= 7 &
+         data$horario$hour <= 9, 4] <- NA
+  data <- dropna(data)
+  
+  return(data)
+}
+
+# Função de eliminação de dados indesejados
+dropna <- function(data){
+  # Removendo linhas incompletas:
+  n1 <- nrow(data)
+  for (col in colnames(data)){
+    data <- data[!is.na(data[col]), ]
+  }
+  n2 <- nrow(data)
+  # cat(sprintf("\"%s\" \"%i\"\n", "Linhas incompletas encontradas:", n1 - n2))
+  return(data)
+}
+
+# Função de eliminação de dados repetidos
+consecutive <- function(vector, k = 1) {
+  n <- length (vector)
+  result <- logical (n)
+  for (i in (1+k):n)
+    if (all( vector [(i-k):(i-1)] == vector[i]))
+      result [i] <- TRUE
+  for (i in 1:(n-k))
+    if (all( vector [(i+1):(i+k)] == vector[i]))
+      result [i] <- TRUE
+  return (result)
+}
+
+#------------------------------------------------#
+#     Análise Sensação Térmica                   #
+#------------------------------------------------#
+
+run_thermal_sensation <- function(data, num_cols = c("temp", "vento", "umid", "sensa"),
+                                  year = 2015, print_cor=FALSE, split_year=TRUE){
+  # Analisando a correlação entre as variáveis de interesse:
+  if (print_cor == TRUE){
+    print(cor(data[num_cols]))  
+  }
+  # Plotting some correlograms:
+  if (split_year == TRUE){
+    data <- data[data$ano == year,]
+    title <- paste("Correlogram", as.character(year))
+  }
+  else{
+    title <- "Correlogram 2015-2019"
+  }
+  plot_correlogram(data[num_cols], title=title)
+  
+}
+
+plot_correlogram <- function(data, title){
+  ggpairs(data, title=title)
+}
+
+plot_scatters <- function(data){
+  # A basic scatterplot with color depending on Species
+  ggplot(data, aes(x = min(sensa):max(sensa))) +
+    geom_point(aes(x=sensa, y=temp, alpha=0.001), color="red", size=1)
+  geom_point(aes(x=sensa, y=vento, alpha=0.001), color="green", size=1)
+  geom_point(aes(x=sensa, y=umid, alpha=0.001), color="blue", size=1) 
+}
+
+# Pré-processamento dos dados:
+cepagri <- run_preprocessing(cepagri, num_cols=names[2:length(names)])
+summary(cepagri)
+
+# # Análise da Influência de Temperatura, umidade do ar e velocidade do vento na sensação térmica:
+# run_thermal_sensation(cepagri, year = 2015, print_cor=TRUE)
+# # run_thermal_sensation(cepagri, year = 2016)
+# # run_thermal_sensation(cepagri, year = 2017)
+# # run_thermal_sensation(cepagri, year = 2018)
+# run_thermal_sensation(cepagri, year = 2019)
+run_thermal_sensation(cepagri, split_year=FALSE)
+
+#------------------------------------------------#
+#     Análise de Predição Sensação Térmica       #
+#------------------------------------------------#
+
+run_thermal_prediction <- function(data, num_cols = c("temp", "vento", "umid", "sensa"),
+                                   split_prop=0.7, EPOCHS=100, init_params=c(1, 0, 0)){
+  # Separando os dados em treinamento e teste:
+  data_train <- data[1:as.integer(split_prop*nrow(data)),]
+  data_test <- data[as.integer(split_prop*nrow(data)): nrow(data),]
+  
+  # Executando o treinamento:
+  print("Performing the training:")
+  opt_params <- init_params
+  error_min <- Inf
+  error_array <- NULL
+  epoch_array <- 1:EPOCHS
+  for (epoch in epoch_array){
+    # Ajustando a taxa de aprendizado:
+    lr <- adjust_lr(error_min)
+    # Gerar mutações:
+    params_set <- mutate_params(opt_params, lr)
+    # Obtendo a melhor mutação:
+    for (i in 1:length(params_set)){
+      params <- params_set[[i]]
+      sensa_pred <- predict_sensa(data_train, params)
+      error <- calculate_error(data_train$sensa, sensa_pred)
+      if (error < error_min){
+        error_min <- error
+        opt_params <- params
+      }
+    }
+    error_array <- c(error_array, error_min)
+    print(paste("Epoch:", as.character(epoch), "Error:", as.character(error_min)))
+  }
+  print("Optimal parameters:")
+  print(paste("alpha:", as.character(opt_params[1])))
+  print(paste("beta:", as.character(opt_params[2])))
+  print(paste("gamma:", as.character(opt_params[3])))
+  
+  # Executando o teste:
+  sensa_test <- predict_sensa(data_test, opt_params)
+  error_test <- calculate_error(data_test$sensa, sensa_test)
+  print(paste("Test error:", as.character(error_test)))
+  
+  # Plotting a boxplot graph:
+  sensa_pred_all <- predict_sensa(data, opt_params)
+  plot_boxplot(data, sensa_pred_all)
+  
+}
+
+
+mutate_params <- function(init_condition, lr){
+  alpha <- init_condition[1]
+  beta <- init_condition[2]
+  gamma <- init_condition[3]
+  
+  params_set <- list()
+  params_set[[1]] = c(alpha, beta, gamma)
+  params_set[[2]] = c(alpha+lr*runif(1), beta, gamma)
+  params_set[[3]] = c(alpha-lr*runif(1), beta, gamma)
+  params_set[[4]] = c(alpha, beta+lr*runif(1), gamma)
+  params_set[[5]] = c(alpha, beta-lr*runif(1), gamma)
+  params_set[[6]] = c(alpha, beta, gamma+lr*runif(1))
+  params_set[[7]] = c(alpha, beta, gamma-lr*runif(1))
+  
+  return(params_set)
+}
+
+
+predict_sensa <- function(data, params){
+  alpha <- params[1]
+  beta <- params[2]
+  gamma <- params[3]
+  predictions <- (data$temp * alpha * 0.9) + (data$vento * beta * 0.2) + (data$umid * gamma * 0.5)
+  
+  return(predictions)
+}
+
+
+calculate_error <- function(y_true, y_pred){
+  error <- sum(abs(y_true-y_pred))/length(y_true)
+  return(error)
+}
+
+
+adjust_lr <- function(error){
+  # Ajustando a taxa de aprendizado:
+  if (error > 10){
+    lr <- 0.1
+  }
+  else if(error > 1){
+    lr <- 0.05
+  }
+  else{
+    lr <- 0.01
+  }
+  return(lr)
+}
+
+plot_boxplot <- function(data, sensa_pred_all){
+  data_copy <- data
+  data$status <- "1 - medido"
+  data_copy$sensa <- sensa_pred_all
+  data_copy$status <- "2 - estimado"
+  data_all <- rbind(data, data_copy)
+  # grouped boxplot
+  ggplot(data_all, aes(x=ano_mes, y=sensa, fill=status)) + 
+    geom_boxplot() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    xlab(NULL) + ylab("sensação térmica [ºC]") + 
+    ggtitle("Medições x valores estimados")
+}
+
+# Implementação de um modelo preditivo simples de sensação térmica.
+run_thermal_prediction(cepagri)
 
 ##################################################
 #------------------------------------------------#
