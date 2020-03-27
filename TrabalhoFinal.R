@@ -734,58 +734,29 @@ head(cepagri)
 #Outono:    21 março até 20 junho.
 #Inverno:   21 junho até 20 setembro.
 #Criando função define_estacao_ano
-define_estacao_ano <- function(p_horario) {
-  estacao <- NULL
-  ano <- NULL
-  if ((p_horario >= "2015-09-21" && p_horario < "2015-12-21") ||
-      (p_horario >= "2016-09-21" && p_horario < "2016-12-21") ||
-      (p_horario >= "2017-09-21" && p_horario < "2017-12-21") || 
-      (p_horario >= "2018-09-21" && p_horario < "2018-12-21") ||
-      (p_horario >= "2019-09-21" && p_horario < "2019-12-21")) {
-    estacao <- "Primavera";
-    unclass(p_horario)$year + 1900;
-  } else if (p_horario >= "2014-12-21" && p_horario < "2015-03-21") {
-    estacao <- "Verao"; 
-    ano <- 2015;
-  } else if (p_horario >= "2015-12-21" && p_horario < "2016-03-21") {
-    estacao <- "Verao"; 
-    ano <- 2016; 
-  } else if (p_horario >= "2016-12-21" && p_horario < "2017-03-21") {
-    estacao <- "Verao"; ano <- 2017; 
-  } else if (p_horario >= "2017-12-21" && p_horario < "2018-03-21") {
-    estacao <- "Verao";
-    ano <- 2018; 
-  } else if (p_horario >= "2018-12-21" && p_horario < "2019-03-21") {
-    estacao <- "Verao"; 
-    ano <- 2019; 
-  } else if ((p_horario >= "2015-03-21" && p_horario < "2015-06-21") || 
-           (p_horario >= "2016-03-21" && p_horario < "2016-06-21") ||
-           (p_horario >= "2017-03-21" && p_horario < "2017-06-21") || 
-           (p_horario >= "2018-03-21" && p_horario < "2018-06-21") ||
-           (p_horario >= "2019-03-21" && p_horario < "2019-06-21")) {
-    estacao <- "Outono"; 
-    unclass(p_horario)$year + 1900;
-  } else if ((p_horario >= "2015-06-21" && p_horario < "2015-09-21") || 
-           (p_horario >= "2016-06-21" && p_horario < "2016-09-21") ||
-           (p_horario >= "2017-06-21" && p_horario < "2017-09-21") || 
-           (p_horario >= "2018-06-21" && p_horario < "2018-09-21") ||
-           (p_horario >= "2019-06-21" && p_horario < "2019-09-21")) {
-    estacao <- "Inverno"; 
-    unclass(p_horario)$year + 1900; 
+define_estacao_ano <- function(df) {
+  anos <- c("2015", "2016", "2017", "2018", "2019")
+  primavera <- c("09-21", "12-21")
+  outuno <- c("03-21", "06-21")
+  inverno <- c("06-21", "09-21")
+  df$estacao <- "Verao";
+  for (ano in anos) {
+    primavera_range <- c(paste(ano, primavera[1], sep = "-"), paste(ano, primavera[2], sep = "-"))
+    outuno_range <- c(paste(ano, outuno[1], sep = "-"), paste(ano, outuno[2], sep = "-"))
+    inverno_range <- c(paste(ano, inverno[1], sep = "-"), paste(ano, inverno[2], sep = "-"))
+    df[df$horario >= primavera_range[1] & df$horario < primavera_range[2],]$estacao <- "Primavera";
+    df[df$horario >= outuno_range[1] & df$horario < outuno_range[2],]$estacao <- "Outuno";
+    df[df$horario >= inverno_range[1] & df$horario < inverno_range[2],]$estacao <- "Inverno";
   }
-  return(c(estacao,ano))
+  df
 }
 
 #Chamando a função define_estacao_ano
-estacoes <- matrix(ncol = 2)
-estacoes <- NULL
-for(i in 1:nrow(cepagri)) {
-  horario <- cepagri[[1]][i];
-  estacoes <- rbind(estacoes, define_estacao_ano(as.Date(horario)));
-}
+cepagri$ano <- unclass(cepagri$horario)$year + 1900
+cepagri <- define_estacao_ano(cepagri)
+cepagri <- filterYears(cepagri)
 
 #Incluindo as colunas estacao e ano no dataframe cepagri
-cepagri <- cbind(cepagri,estacoes)
 head(cepagri)
 tail(cepagri)
 
@@ -830,15 +801,8 @@ Variancia <- data.frame(Var_2015 = round(tapply(cepagri2015$temp , cepagri2015$e
                         Var_2018 = round(tapply(cepagri2018$temp , cepagri2018$estacao , var),2),
                         Var_2019 = round(tapply(cepagri2019$temp , cepagri2019$estacao , var),2))  
 
-Metricas <- list(Minima,Media, Maxima, Desvio,Variancia)
-
-#Geração dos gráficos
-cepagri2015$estacao <- factor(cepagri2015$estacao);
-head(cepagri2015)
-class(cepagri2015$estacao_f)
-
-ggplot(cepagri2015, aes(x = estacao , y = temp, group = estacao, fill = estacao)) + labs(title = "2015") + geom_violin () + scale_fill_brewer(palette = "Set1")
-ggplot(cepagri2016, aes(x = estacao , y = temp, group = estacao, fill = estacao)) + labs(title = "2016") + geom_violin () + scale_fill_brewer(palette = "Set1")
-ggplot(cepagri2017, aes(x = estacao , y = temp, group = estacao, fill = estacao)) + labs(title = "2017") + geom_violin () + scale_fill_brewer(palette = "Set1")
-ggplot(cepagri2018, aes(x = estacao , y = temp, group = estacao, fill = estacao)) + labs(title = "2018") + geom_violin () + scale_fill_brewer(palette = "Set1")
-ggplot(cepagri2019, aes(x = estacao , y = temp, group = estacao, fill = estacao)) + labs(title = "2019") + geom_violin () + scale_fill_brewer(palette = "Set1")
+ggplot(cepagri, aes(x = estacao , y = temp,
+                    group = estacao, fill = estacao)) +
+  labs(title = "Variação Temperatura") + geom_violin () +
+  scale_fill_brewer(palette = "Set1") + facet_wrap( ~ ano, ncol=2) +
+  labs(x = "Estações", y = "Temperatura")
