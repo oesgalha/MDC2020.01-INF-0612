@@ -14,10 +14,10 @@
 #------------------------------------------------#
 
 #------------------------------------------------#
-# Configuracao dos arquivos auxiliares           #
+# Configuracao de libs                           #
 #------------------------------------------------#
-rm(list = ls());
-setwd("~/Projetos/UNICAMP/data/inf-0612/TesteFinal"); # configure o caminho antes de descomentar essa linha
+# rm(list = ls());
+# setwd("~/Projetos/UNICAMP/data/inf-0612/TesteFinal");
 library(plyr);
 library(ggplot2);
 library(GGally);
@@ -27,7 +27,9 @@ library(GGally);
 #------------------------------------------------#
 # Carrega os dados
 names <- c("horario", "temp", "vento", "umid", "sensa")
-cepagri_bkp <- read.csv("cepagri.csv", header = FALSE, sep = ";", col.names = names)
+#cepagri_bkp <- read.csv("cepagri.csv", header = FALSE, sep = ";", col.names = names)
+con <- url("https://www.ic.unicamp.br/~zanoni/cepagri/cepagri.csv")
+cepagri_bkp <- read.csv(con , header = FALSE,sep = ";",col.names = names)
 
 cepagri <- cepagri_bkp;
 
