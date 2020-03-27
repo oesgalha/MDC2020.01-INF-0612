@@ -21,6 +21,7 @@ setwd("~/Projetos/UNICAMP/data/inf-0612/TesteFinal"); # configure o caminho ante
 library(plyr);
 library(ggplot2);
 library(GGally);
+library(lubridate);
 
 #------------------------------------------------#
 #     Pré-processamento                          #
@@ -39,7 +40,6 @@ addAuxColumn <- function(data) {
   data$horario <- as.POSIXlt(data$horario)
   data$ano <- unclass(data$horario)$year + 1900
   data$mes <- unclass(data$horario)$mon + 1
-  data$dia <- unclass(cepagri$horario)$mday;
   return(data);
 }
 
@@ -81,6 +81,16 @@ markUmidError <- function(data) {
          data$horario$hour <= 9, 4] <- NA;
   return(data);
 }
+
+checkNumericColumns <- function(data, num_cols=c("temp", "vento", "umid", "sensa")) {
+  for (col in num_cols){
+    if (class(data[, col]) != "numeric"){
+      data[, col] <- as.character(data[, col])
+      data[, col] <- as.numeric(data[, col])
+    }
+  }
+  return(data);
+}
 ##################################################
 #------------------------------------------------#
 #     Análise Sensação Térmica                   #
@@ -93,12 +103,7 @@ run_preprocessing <- function(data, num_cols=c("temp", "vento", "umid", "sensa")
   data <- dropna(data)
   
   # Checando se todas as colunas são numéricas:
-  for (col in num_cols){
-    if (class(data[, col]) != "numeric"){
-      data[, col] <- as.character(data[, col])
-      data[, col] <- as.numeric(data[, col])
-    }
-  }
+  data <- checkNumericColumns(data, num_cols);
   
   # Eliminando outliers:
   data[data$sensa == 99.9, 5] <- NA
@@ -288,7 +293,8 @@ run_thermal_prediction(cepagri)
 #     Análise Saude                              #
 #------------------------------------------------#
 
-# Reiniando base de dados, para garantir que não tenha dados necessários para esta análise
+# Reiniando base de dados, para garantir que não tenha perda de dados necessários para esta análise
+# por motivo de tratamnto de análises anteriores
 cepagri <- cepagri_bkp;
 
 cepagri <- addAuxColumn(cepagri);
@@ -550,7 +556,8 @@ ggplot(comparativo, aes(fill=estado, y=porcentagem, x=mes)) +
 #     Análise Vento                              #
 #------------------------------------------------#
 
-# Reiniando base de dados, para garantir que não tenha dados necessários para esta análise
+# Reiniando base de dados, para garantir que não tenha perda de dados necessários para esta análise
+# por motivo de tratamnto de análises anteriores
 cepagri <- cepagri_bkp;
 
 # Le tabela da escala de beaufort
@@ -569,6 +576,7 @@ head(cepagri[cepagri$vento == 0, ], 50);
 
 #Convertendo horario para POSIXlt e criando colunas ano/mes/dia
 cepagri <- addAuxColumn(cepagri);
+cepagri$dia <- unclass(cepagri$horario)$mday;
 head(cepagri);
 
 cepagri2015 <- cepagri[cepagri$ano == 2015, ];
@@ -640,7 +648,6 @@ calc_beaufort <- function(vento) {
 
 # Soma ocorrencias de cada grau de beaufort
 cepagri["beaufort"] <- sapply(cepagri$vento, calc_beaufort);
-cepagri[cepagri$beaufort == 12, ];
 beaufort_sum <- tapply(cepagri$beaufort, cepagri$ano, plyr::count);
 
 # deixa os itens com mesmo numero de linhas
@@ -650,7 +657,7 @@ for (i in 1:length(beaufort_sum)) {
   }
 }
 
-# agrupa em um data frame
+# agrupa em um data frame e adiciona o descritivo do grau de beaufort
 beaufort_sum;
 beaufort_matrix <- matrix(NA, nrow = 1, ncol = 0);
 for (i in 1:length(beaufort_sum)) {
@@ -660,20 +667,23 @@ for (i in 1:length(beaufort_sum)) {
 
 df_beaufort <- as.data.frame(beaufort_matrix); df_beaufort;
 
-png("escala-beaufort.png", width = 638, height = 399);
+#png("escala-beaufort.png", width = 638, height = 399);
 p<-ggplot(df_beaufort , aes(x = year, y = freq, fill = as.factor(x)));
 p<-p+geom_bar(stat="identity", position=position_dodge(), color="Black");
 p<-p+labs(y="Quantidade de Medições", x="Ano", fill="Escala de Beaufort");
 p<-p+scale_fill_discrete(labels=beaufort$Designação);
 p<-p+theme_minimal();
-print(p)
-dev.off()
+p;
+#print(p)
+#dev.off()
 
 ##################################################
 #------------------------------------------------#
-#     Análise Estações                             #
+#     Análise Estações                           #
 #------------------------------------------------#
-# Reiniando base de dados, para garantir que não tenha dados necessários para esta análise
+
+# Reiniando base de dados, para garantir que não tenha perda de dados necessários para esta análise
+# por motivo de tratamnto de análises anteriores
 cepagri <- cepagri_bkp;
 
 #Eliminando linhas com valores não disponíveis (NA)
@@ -751,14 +761,7 @@ head(cepagri)
 tail(cepagri)
 
 # Converte valores para numéricos
-cepagri$temp <- as.character(cepagri$temp)
-cepagri$temp <- as.numeric(cepagri$temp)
-cepagri$vento <- as.character(cepagri$vento)
-cepagri$vento <- as.numeric(cepagri$vento)
-cepagri$umid <- as.character(cepagri$umid)
-cepagri$umid <- as.numeric(cepagri$umid)
-cepagri$sensa <- as.character(cepagri$sensa)
-cepagri$sensa <- as.numeric(cepagri$sensa)
+cepagri <- checkNumericColumns(data);
 
 #Separando dataframe em anos
 cepagri2015 <- cepagri[cepagri$ano == 2015, ]
