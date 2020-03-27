@@ -561,8 +561,7 @@ ggplot(comparativo, aes(fill=estado, y=porcentagem, x=mes)) +
 cepagri <- cepagri_bkp;
 
 # Le tabela da escala de beaufort
-beaufort <- read.csv("escala-de-beaufort.csv" , header = TRUE);
-beaufort;
+beaufort_designação <- c("Calmo", "Aragem", "Brisa leve", "Brisa fraca", "Brisa moderada", "Brisa forte", "Vento fresco", "Vento forte", "Ventania", "Ventania forte", "Tempestade", "Tempestade violenta", "Furacão");
 
 # Remove vento igual NA
 nrow(cepagri)
@@ -680,7 +679,7 @@ for (i in 1:length(beaufort_sum)) {
   }
 }
 
-# agrupa em um data frame e adiciona o descritivo do grau de beaufort
+# agrupa em um data frame
 beaufort_sum;
 beaufort_matrix <- matrix(NA, nrow = 1, ncol = 0);
 for (i in 1:length(beaufort_sum)) {
@@ -694,7 +693,7 @@ df_beaufort <- as.data.frame(beaufort_matrix); df_beaufort;
 p<-ggplot(df_beaufort , aes(x = year, y = freq, fill = as.factor(x)));
 p<-p+geom_bar(stat="identity", position=position_dodge(), color="Black");
 p<-p+labs(y="Quantidade de Medições", x="Ano", fill="Escala de Beaufort");
-p<-p+scale_fill_discrete(labels=beaufort$Designação);
+p<-p+scale_fill_discrete(labels=beaufort_designação);
 p<-p+theme_minimal();
 p;
 #print(p)
