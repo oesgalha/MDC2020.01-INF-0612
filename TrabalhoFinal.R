@@ -16,7 +16,8 @@
 #------------------------------------------------#
 # Configuracao dos arquivos auxiliares           #
 #------------------------------------------------#
-# setwd("") # configure o caminho antes de descomentar essa linha
+rm(list = ls());
+setwd("~/Projetos/UNICAMP/data/inf-0612/TesteFinal"); # configure o caminho antes de descomentar essa linha
 library(plyr);
 library(ggplot2);
 library(GGally);
@@ -26,56 +27,26 @@ library(GGally);
 #------------------------------------------------#
 # Carrega os dados
 names <- c("horario", "temp", "vento", "umid", "sensa")
-cepagri <- read.csv("cepagri.csv", header = FALSE, sep = ";", col.names = names)
+cepagri_bkp <- read.csv("cepagri.csv", header = FALSE, sep = ";", col.names = names)
 
-##################################################
-#------------------------------------------------#
-#     Análise Sensação Térmica                   #
-#------------------------------------------------#
+cepagri <- cepagri_bkp;
 
-# Função de pré processamento
-run_preprocessing <- function(data, num_cols=c("temp", "vento", "umid", "sensa")){
-  
-  # Eliminando valores NA (devido à falha na leitura):
-  data <- dropna(data)
-  
-  # Checando se todas as colunas são numéricas:
-  for (col in num_cols){
-    if (class(data[, col]) != "numeric"){
-      data[, col] <- as.character(data[, col])
-      data[, col] <- as.numeric(data[, col])
-    }
-  }
-  
-  # Eliminando outliers:
-  data[data$sensa == 99.9, 5] <- NA
-  # Eliminando valores NA (devido à remoção de outliers):
-  data <- dropna(data)
-  
-  # Adicionando colunas auxiliares:
+#------------------------------------------------#
+#     Funções auxiliares                         #
+#------------------------------------------------#
+addAuxColumn <- function(data) {
   data$horario <- as.POSIXct(as.character(data$horario), format='%d/%m/%Y-%H:%M')
   data$horario <- as.POSIXlt(data$horario)
   data$ano <- unclass(data$horario)$year + 1900
   data$mes <- unclass(data$horario)$mon + 1
-  month_num <- as.character(unclass(data$horario)$mon + 1)
-  for (num in c("1", "2", "3", "4", "5", "6", "7", "8", "9")){
-    month_num[month_num == num] = paste("0", num, sep="")
-  }
-  data$ano_mes <- paste(as.character(unclass(data$horario)$year + 1900), month_num, sep="-")
-  
-  # Filtrando os anos de interesse:
+  data$dia <- unclass(cepagri$horario)$mday;
+  return(data);
+}
+
+filterYears <- function(data) {
   data <- data[data$ano >= 2015,]
   data <- data[data$ano <= 2019,]
-  
-  # Remove as medições incorretas de umidade que ocorreram
-  # em 2019 entre as 7 e 9 da manha com umidade relativa == 0
-  data[data$umi == 0.0 &
-         data$ano == 2019 & 
-         data$horario$hour >= 7 &
-         data$horario$hour <= 9, 4] <- NA
-  data <- dropna(data)
-  
-  return(data)
+  return(data);
 }
 
 # Função de eliminação de dados indesejados
@@ -103,6 +74,58 @@ consecutive <- function(vector, k = 1) {
   return (result)
 }
 
+markUmidError <- function(data) {
+  data[data$umi == 0.0 &
+         data$ano == 2019 & 
+         data$horario$hour >= 7 &
+         data$horario$hour <= 9, 4] <- NA;
+  return(data);
+}
+##################################################
+#------------------------------------------------#
+#     Análise Sensação Térmica                   #
+#------------------------------------------------#
+
+# Função de pré processamento
+run_preprocessing <- function(data, num_cols=c("temp", "vento", "umid", "sensa")){
+  
+  # Eliminando valores NA (devido à falha na leitura):
+  data <- dropna(data)
+  
+  # Checando se todas as colunas são numéricas:
+  for (col in num_cols){
+    if (class(data[, col]) != "numeric"){
+      data[, col] <- as.character(data[, col])
+      data[, col] <- as.numeric(data[, col])
+    }
+  }
+  
+  # Eliminando outliers:
+  data[data$sensa == 99.9, 5] <- NA
+  
+  # Eliminando valores NA (devido à remoção de outliers):
+  data <- dropna(data)
+  
+  # Adicionando colunas auxiliares:
+  data <- addAuxColumn(data);
+  
+  month_num <- as.character(unclass(data$horario)$mon + 1)
+  for (num in c("1", "2", "3", "4", "5", "6", "7", "8", "9")){
+    month_num[month_num == num] = paste("0", num, sep="")
+  }
+  data$ano_mes <- paste(as.character(unclass(data$horario)$year + 1900), month_num, sep="-")
+  
+  # Filtrando os anos de interesse:
+  data <- filterYears(data);
+  
+  # Remove as medições incorretas de umidade que ocorreram
+  # em 2019 entre as 7 e 9 da manha com umidade relativa == 0
+  markUmidError(data);
+  data <- dropna(data);
+  
+  return(data)
+}
+
 #------------------------------------------------#
 #     Análise Sensação Térmica                   #
 #------------------------------------------------#
@@ -122,7 +145,6 @@ run_thermal_sensation <- function(data, num_cols = c("temp", "vento", "umid", "s
     title <- "Correlogram 2015-2019"
   }
   plot_correlogram(data[num_cols], title=title)
-  
 }
 
 plot_correlogram <- function(data, title){
@@ -137,7 +159,7 @@ plot_scatters <- function(data){
   geom_point(aes(x=sensa, y=umid, alpha=0.001), color="blue", size=1) 
 }
 
-# Pré-processamento dos dados:
+# Pré-processamento dos dados para esta análise:
 cepagri <- run_preprocessing(cepagri, num_cols=names[2:length(names)])
 summary(cepagri)
 
@@ -199,7 +221,6 @@ run_thermal_prediction <- function(data, num_cols = c("temp", "vento", "umid", "
   
 }
 
-
 mutate_params <- function(init_condition, lr){
   alpha <- init_condition[1]
   beta <- init_condition[2]
@@ -217,7 +238,6 @@ mutate_params <- function(init_condition, lr){
   return(params_set)
 }
 
-
 predict_sensa <- function(data, params){
   alpha <- params[1]
   beta <- params[2]
@@ -227,12 +247,10 @@ predict_sensa <- function(data, params){
   return(predictions)
 }
 
-
 calculate_error <- function(y_true, y_pred){
   error <- sum(abs(y_true-y_pred))/length(y_true)
   return(error)
 }
-
 
 adjust_lr <- function(error){
   # Ajustando a taxa de aprendizado:
@@ -270,13 +288,13 @@ run_thermal_prediction(cepagri)
 #     Análise Saude                              #
 #------------------------------------------------#
 
-cepagri$horario <- as.POSIXct(as.character(cepagri$horario), format='%d/%m/%Y-%H:%M')
-cepagri$horario <- as.POSIXlt(cepagri$horario)
-cepagri$ano <- unclass(cepagri$horario)$year + 1900
+# Reiniando base de dados, para garantir que não tenha dados necessários para esta análise
+cepagri <- cepagri_bkp;
+
+cepagri <- addAuxColumn(cepagri);
 
 # Filtra para analisar apenas os dados entre 2015 e 2019
-cepagri <- cepagri[cepagri$ano >= 2015,]
-cepagri <- cepagri[cepagri$ano <= 2019,]
+cepagri <- filterYears(cepagri);
 
 # Limpa as entradas com erro de medição
 cepagri <- cepagri[!is.na(cepagri$umid), ]
@@ -340,13 +358,7 @@ cepagri[
 
 # Remove as medições incorretas de umidade que ocorreram
 # em 2019 entre as 7 e 9 da manha com umidade relativa == 0
-cepagri[
-  cepagri$umi == 0.0 &
-    cepagri$ano == 2019 & 
-    cepagri$horario$hour >= 7 &
-    cepagri$horario$hour <= 9,
-  4
-  ] <- NA
+cepagri <- markUmidError(cepagri)
 cepagri <- cepagri[!is.na(cepagri$umid), ]
 
 summary(cepagri[,c("umid")])
@@ -537,7 +549,9 @@ ggplot(comparativo, aes(fill=estado, y=porcentagem, x=mes)) +
 #------------------------------------------------#
 #     Análise Vento                              #
 #------------------------------------------------#
-head(cepagri);
+
+# Reiniando base de dados, para garantir que não tenha dados necessários para esta análise
+cepagri <- cepagri_bkp;
 
 # Le tabela da escala de beaufort
 beaufort <- read.csv("escala-de-beaufort.csv" , header = TRUE);
@@ -554,10 +568,7 @@ head(cepagri[cepagri$vento == 143.60, ], 10);
 head(cepagri[cepagri$vento == 0, ], 50);
 
 #Convertendo horario para POSIXlt e criando colunas ano/mes/dia
-cepagri$horario <- as.POSIXlt(cepagri$horario, format = "%d/%m/%Y-%H:%M");
-cepagri$ano <- unclass(cepagri$horario)$year + 1900
-cepagri$mes <- unclass(cepagri$horario)$mon + 1
-cepagri$dia <- unclass(cepagri$horario)$mday;
+cepagri <- addAuxColumn(cepagri);
 head(cepagri);
 
 cepagri2015 <- cepagri[cepagri$ano == 2015, ];
@@ -567,19 +578,6 @@ cepagri201512;
 
 ## http://g1.globo.com/sp/campinas-regiao/noticia/2015/09/temporal-tem-ventos-ate-1425-kmh-na-regiao-de-campinas-diz-cepagri.html
 
-# Remove consecutivos
-consecutive <- function(vector, k = 1) {
-  n <- length(vector)
-  result <- logical(n)
-  for (i in (1+k):n)
-    if (all(vector[(i-k):(i-1)] == vector[i]))
-      result[i] <- TRUE
-  for (i in 1:(n-k))
-    if (all(vector[(i+1):(i+k)] == vector[i]))
-      result[i] <- TRUE
-  return(result)
-}
-
 filtro <- consecutive(cepagri$vento, 144)
 cepagri <- cepagri[!filtro, ];
 
@@ -588,7 +586,7 @@ tapply(cepagri$vento, list(cepagri$ano, cepagri$mes), mean)
 
 # removendo anos com dados incompletos
 class(cepagri$ano);
-cepagri <- cepagri[cepagri$ano > 2014 & cepagri$ano < 2020, ];
+cepagri <- filterYears(cepagri);
 
 ## Análise exploratória ##
 
@@ -675,6 +673,8 @@ dev.off()
 #------------------------------------------------#
 #     Análise Estações                             #
 #------------------------------------------------#
+# Reiniando base de dados, para garantir que não tenha dados necessários para esta análise
+cepagri <- cepagri_bkp;
 
 #Eliminando linhas com valores não disponíveis (NA)
 #Tamanho inicial: 314.325
