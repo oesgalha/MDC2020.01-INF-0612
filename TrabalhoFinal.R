@@ -638,12 +638,35 @@ tapply(cepagri$vento, cepagri$mes, median)
 ## funcao que recebe uma velocidade de vento
 ## e retorna sua categoria na escala de beaufort
 calc_beaufort <- function(vento) {
-  i <- 1;
-  while(vento > beaufort[i, ]$max) {
-    i = i + 1; 
+  grau <- NULL;
+  if(vento > 117) {
+    grau <- 12
+  } else if(vento > 102) {
+    grau <- 11
+  } else if(vento > 88) {
+    grau <- 10
+  } else if(vento > 74) {
+    grau <- 9
+  } else if(vento > 61) {
+    grau <- 8
+  } else if(vento > 49) {
+    grau <- 7
+  } else if(vento > 38) {
+    grau <- 6
+  } else if(vento > 28) {
+    grau <- 5
+  } else if(vento > 19) {
+    grau <- 4
+  } else if(vento > 11) {
+    grau <- 3
+  } else if(vento > 5) {
+    grau <- 2
+  } else if(vento > 1) {
+    grau <- 1
+  } else {
+    grau <- 0
   }
-  
-  return(beaufort[i, ]$Grau)
+  return(grau);
 }
 
 # Soma ocorrencias de cada grau de beaufort
