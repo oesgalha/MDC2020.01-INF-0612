@@ -21,7 +21,6 @@ setwd("~/Projetos/UNICAMP/data/inf-0612/TesteFinal"); # configure o caminho ante
 library(plyr);
 library(ggplot2);
 library(GGally);
-library(lubridate);
 
 #------------------------------------------------#
 #     Pré-processamento                          #
@@ -717,15 +716,16 @@ nrow(cepagri)
 #Convertendo horario para POSIXlt
 class(cepagri$horario)
 cepagri$horario <- strptime(cepagri$horario, "%d/%m/%Y-%H:%M")
+#data$horario <- as.POSIXct(as.character(data$horario), format='%d/%m/%Y-%H:%M')
+#data$horario <- as.POSIXlt(data$horario)
 class(cepagri$horario)
 
 #Retirando linhas que não serão utilizadas na análise
 #Retirando 2014, deixando somente a partir do dia 21/12/2014 - inicio do verao de 2015
-cepagri <- cepagri [as.Date(cepagri$horario) >= "2014-12-21", ]
+cepagri <- cepagri[as.Date(cepagri$horario) >= "2014-12-21", ]
 #Retirando a partir do começo do verão de 2020: 21/12/2019
-cepagri <- cepagri [as.Date(cepagri$horario) < "2019-12-21", ]
+cepagri <- cepagri[as.Date(cepagri$horario) < "2019-12-21", ]
 head(cepagri)
-tail(cepagri)
 
 #Definindo os anos e as respectivas estações.
 #Foram considerados os períodos abaixo para definição de cada estação, sem considerar os horários
@@ -741,35 +741,41 @@ define_estacao_ano <- function(p_horario) {
       (p_horario >= "2016-09-21" && p_horario < "2016-12-21") ||
       (p_horario >= "2017-09-21" && p_horario < "2017-12-21") || 
       (p_horario >= "2018-09-21" && p_horario < "2018-12-21") ||
-      (p_horario >= "2019-09-21" && p_horario < "2019-12-21")) 
-  {estacao <- "Primavera"; ano <- year(p_horario); 
-  }
-  
-  else if (p_horario >= "2014-12-21" && p_horario < "2015-03-21") 
-  {estacao <- "Verao"; ano <- 2015; }
-  
-  else if (p_horario >= "2015-12-21" && p_horario < "2016-03-21")
-  {estacao <- "Verao"; ano <- 2016; }
-  else if (p_horario >= "2016-12-21" && p_horario < "2017-03-21") 
-  {estacao <- "Verao"; ano <- 2017; } 
-  else if (p_horario >= "2017-12-21" && p_horario < "2018-03-21") 
-  {estacao <- "Verao"; ano <- 2018; }
-  else if (p_horario >= "2018-12-21" && p_horario < "2019-03-21") 
-  {estacao <- "Verao"; ano <- 2019; }
-  else if ((p_horario >= "2015-03-21" && p_horario < "2015-06-21") || 
+      (p_horario >= "2019-09-21" && p_horario < "2019-12-21")) {
+    estacao <- "Primavera";
+    unclass(p_horario)$year + 1900;
+  } else if (p_horario >= "2014-12-21" && p_horario < "2015-03-21") {
+    estacao <- "Verao"; 
+    ano <- 2015;
+  } else if (p_horario >= "2015-12-21" && p_horario < "2016-03-21") {
+    estacao <- "Verao"; 
+    ano <- 2016; 
+  } else if (p_horario >= "2016-12-21" && p_horario < "2017-03-21") {
+    estacao <- "Verao"; ano <- 2017; 
+  } else if (p_horario >= "2017-12-21" && p_horario < "2018-03-21") {
+    estacao <- "Verao";
+    ano <- 2018; 
+  } else if (p_horario >= "2018-12-21" && p_horario < "2019-03-21") {
+    estacao <- "Verao"; 
+    ano <- 2019; 
+  } else if ((p_horario >= "2015-03-21" && p_horario < "2015-06-21") || 
            (p_horario >= "2016-03-21" && p_horario < "2016-06-21") ||
            (p_horario >= "2017-03-21" && p_horario < "2017-06-21") || 
            (p_horario >= "2018-03-21" && p_horario < "2018-06-21") ||
-           (p_horario >= "2019-03-21" && p_horario < "2019-06-21") ) 
-  {estacao <- "Outono"; ano <- year(p_horario); }
-  else if ((p_horario >= "2015-06-21" && p_horario < "2015-09-21") || 
+           (p_horario >= "2019-03-21" && p_horario < "2019-06-21")) {
+    estacao <- "Outono"; 
+    unclass(p_horario)$year + 1900;
+  } else if ((p_horario >= "2015-06-21" && p_horario < "2015-09-21") || 
            (p_horario >= "2016-06-21" && p_horario < "2016-09-21") ||
            (p_horario >= "2017-06-21" && p_horario < "2017-09-21") || 
            (p_horario >= "2018-06-21" && p_horario < "2018-09-21") ||
-           (p_horario >= "2019-06-21" && p_horario < "2019-09-21") ) 
-  {estacao <- "Inverno"; ano <- year(p_horario); }
-  return(cbind(estacao,ano))
+           (p_horario >= "2019-06-21" && p_horario < "2019-09-21")) {
+    estacao <- "Inverno"; 
+    unclass(p_horario)$year + 1900; 
+  }
+  return(c(estacao,ano))
 }
+
 #Chamando a função define_estacao_ano
 estacoes <- matrix(ncol = 2)
 estacoes <- NULL
@@ -777,13 +783,14 @@ for(i in 1:nrow(cepagri)) {
   horario <- cepagri[[1]][i];
   estacoes <- rbind(estacoes, define_estacao_ano(as.Date(horario)));
 }
+
 #Incluindo as colunas estacao e ano no dataframe cepagri
 cepagri <- cbind(cepagri,estacoes)
 head(cepagri)
 tail(cepagri)
 
 # Converte valores para numéricos
-cepagri <- checkNumericColumns(data);
+cepagri <- checkNumericColumns(cepagri);
 
 #Separando dataframe em anos
 cepagri2015 <- cepagri[cepagri$ano == 2015, ]
@@ -826,11 +833,10 @@ Variancia <- data.frame(Var_2015 = round(tapply(cepagri2015$temp , cepagri2015$e
 Metricas <- list(Minima,Media, Maxima, Desvio,Variancia)
 
 #Geração dos gráficos
-cepagri2015$estacao <- factor(cepagri2015$estacao)
+cepagri2015$estacao <- factor(cepagri2015$estacao);
 head(cepagri2015)
 class(cepagri2015$estacao_f)
 
-library(ggplot2)
 ggplot(cepagri2015, aes(x = estacao , y = temp, group = estacao, fill = estacao)) + labs(title = "2015") + geom_violin () + scale_fill_brewer(palette = "Set1")
 ggplot(cepagri2016, aes(x = estacao , y = temp, group = estacao, fill = estacao)) + labs(title = "2016") + geom_violin () + scale_fill_brewer(palette = "Set1")
 ggplot(cepagri2017, aes(x = estacao , y = temp, group = estacao, fill = estacao)) + labs(title = "2017") + geom_violin () + scale_fill_brewer(palette = "Set1")
